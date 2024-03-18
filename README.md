@@ -22,7 +22,7 @@ qrPay = QRPay.initQR(
         "bankBin": BanksObject["mbbank"]["bin"],
         "bankNumber": "011998199999"
     },
-    "VNPAY",
+    "VietQR",
 )
 
 content = qrPay.build()
