@@ -1,7 +1,9 @@
-from constants.qr_pay import Provider, AdditionalData, Consumer, Merchant, QRProvider, QRProviderGUID, FieldID, ProviderFieldID, VietQRService, VietQRConsumerFieldID, AdditionalDataID
+from constants.qr_pay import Provider, AdditionalData, Consumer, Merchant, QRProvider, QRProviderGUID, FieldID, \
+    ProviderFieldID, VietQRService, VietQRConsumerFieldID, AdditionalDataID
+
 
 class QRPay:
-    def __init__(self, content):
+    def __init__(self, content=None):
         self.content = content
         self.isValid = True
         self.provider = Provider()
@@ -14,6 +16,7 @@ class QRPay:
         self.tipAndFeePercent = ''
         self.city = ''
         self.zipCode = ''
+
     @staticmethod
     def crc16ccitt(s):
         crc = 0xFFFF
@@ -27,53 +30,66 @@ class QRPay:
         return crc & 0xFFFF
 
     def build(self):
-        version = QRPay.genFieldData(FieldID['VERSION'], getattr(self, 'version', '01'))
-        initMethod = QRPay.genFieldData(FieldID['INIT_METHOD'], getattr(self, 'initMethod', '11'))
-        guid = QRPay.genFieldData(ProviderFieldID['GUID'], self.provider.guid)
-        providerDataContent = f"{QRPay.genFieldData(VietQRConsumerFieldID['BANK_BIN'], self.consumer.bankBin)}{QRPay.genFieldData(VietQRConsumerFieldID['BANK_NUMBER'], self.consumer.bankNumber)}" if self.provider.guid == QRProviderGUID['VIETQR'] else (self.merchant.id if self.provider.guid == QRProviderGUID['VNPAY'] else '')
-        provider = QRPay.genFieldData(ProviderFieldID['DATA'], providerDataContent)
-        service = QRPay.genFieldData(ProviderFieldID['SERVICE'], self.provider.service)
-        providerData = QRPay.genFieldData(self.provider.fieldId, guid + provider + service)
-        fields = [
-            [FieldID['CATEGORY'], self.category],
-            [FieldID['CURRENCY'], getattr(self, 'currency', '704')],
-            [FieldID['AMOUNT'], self.amount],
-            [FieldID['TIP_AND_FEE_TYPE'], self.tipAndFeeType],
-            [FieldID['TIP_AND_FEE_AMOUNT'], self.tipAndFeeAmount],
-            [FieldID['TIP_AND_FEE_PERCENT'], self.tipAndFeePercent],
-            [FieldID['NATION'], getattr(self, 'nation', 'VN')],
-            [FieldID['MERCHANT_NAME'], self.merchant.name],
-            [FieldID['CITY'], self.city],
-            [FieldID['ZIP_CODE'], self.zipCode]
-        ]
-        additionalDataFields = [
-            [AdditionalDataID['BILL_NUMBER'], self.additionalData.billNumber],
-            [AdditionalDataID['MOBILE_NUMBER'], self.additionalData.mobileNumber],
-            [AdditionalDataID['STORE_LABEL'], self.additionalData.store],
-            [AdditionalDataID['LOYALTY_NUMBER'], self.additionalData.loyaltyNumber],
-            [AdditionalDataID['REFERENCE_LABEL'], self.additionalData.reference],
-            [AdditionalDataID['CUSTOMER_LABEL'], self.additionalData.customerLabel],
-            [AdditionalDataID['TERMINAL_LABEL'], self.additionalData.terminal],
-            [AdditionalDataID['PURPOSE_OF_TRANSACTION'], self.additionalData.purpose],
-            [AdditionalDataID['ADDITIONAL_CONSUMER_DATA_REQUEST'], self.additionalData.dataRequest]
-        ]
-        categoryFields = ''.join(QRPay.genFieldData(id, value) for id, value in fields)
-        additionalDataContent = ''.join(QRPay.genFieldData(id, value) for id, value in additionalDataFields)
-        additionalData = QRPay.genFieldData(FieldID['ADDITIONAL_DATA'], additionalDataContent)
-        content = f"{version}{initMethod}{providerData}{categoryFields}{additionalData}{FieldID['CRC']}04"
-        crc = QRPay.genCRCCode(content)
+        version = self.genFieldData(FieldID['VERSION'], getattr(self, 'version', '01'))
+        initMethod = self.genFieldData(FieldID['INIT_METHOD'], getattr(self, 'initMethod', '11'))
+
+        provider_data_content = ''
+        if self.provider.guid == QRProviderGUID['VIETQR']:
+            provider_data_content = self.genFieldData(VietQRConsumerFieldID['BANK_BIN'],
+                                                       self.consumer.bankBin) + \
+                                    self.genFieldData(VietQRConsumerFieldID['BANK_NUMBER'],
+                                                     self.consumer.bankNumber)
+        elif self.provider.guid == QRProviderGUID['VNPAY']:
+            provider_data_content = self.merchant.id
+
+        provider_data = self.genFieldData(self.provider.fieldId,
+                                          self.genFieldData(ProviderFieldID['GUID'], self.provider.guid) +
+                                          self.genFieldData(ProviderFieldID['DATA'], provider_data_content) +
+                                          self.genFieldData(ProviderFieldID['SERVICE'], self.provider.service))
+
+        fields = {
+            FieldID['CATEGORY']: self.category,
+            FieldID['CURRENCY']: getattr(self, 'currency', '704'),
+            FieldID['AMOUNT']: self.amount,
+            FieldID['TIP_AND_FEE_TYPE']: self.tipAndFeeType,
+            FieldID['TIP_AND_FEE_AMOUNT']: self.tipAndFeeAmount,
+            FieldID['TIP_AND_FEE_PERCENT']: self.tipAndFeePercent,
+            FieldID['NATION']: getattr(self, 'nation', 'VN'),
+            FieldID['MERCHANT_NAME']: self.merchant.name,
+            FieldID['CITY']: self.city,
+            FieldID['ZIP_CODE']: self.zipCode
+        }
+
+        category_fields = ''.join(self.genFieldData(id, value) for id, value in fields.items())
+
+        additional_data_fields = {
+            AdditionalDataID['BILL_NUMBER']: self.additionalData.billNumber,
+            AdditionalDataID['MOBILE_NUMBER']: self.additionalData.mobileNumber,
+            AdditionalDataID['STORE_LABEL']: self.additionalData.store,
+            AdditionalDataID['LOYALTY_NUMBER']: self.additionalData.loyaltyNumber,
+            AdditionalDataID['REFERENCE_LABEL']: self.additionalData.reference,
+            AdditionalDataID['CUSTOMER_LABEL']: self.additionalData.customerLabel,
+            AdditionalDataID['TERMINAL_LABEL']: self.additionalData.terminal,
+            AdditionalDataID['PURPOSE_OF_TRANSACTION']: self.additionalData.purpose,
+            AdditionalDataID['ADDITIONAL_CONSUMER_DATA_REQUEST']: self.additionalData.dataRequest
+        }
+
+        additional_data_content = ''.join(self.genFieldData(id, value) for id, value in additional_data_fields.items())
+        additional_data = self.genFieldData(FieldID['ADDITIONAL_DATA'], additional_data_content)
+        content = f"{version}{initMethod}{provider_data}{category_fields}{additional_data}{FieldID['CRC']}04"
+        crc = self.genCRCCode(content)
         return content + crc
 
     @staticmethod
-    def initQR(options, providerType):
-        if providerType.lower() not in ['vietqr', 'vnpay']:
+    def initQR(options, provider_type):
+        provider_type_lower = provider_type.lower()
+        if provider_type_lower not in ['vietqr', 'vnpay']:
             raise TypeError('Chỉ có 2 loại đó là: vietqr, vnpay')
-        qr = QRPay(None)
-        isVietQR = providerType.lower() == 'vietqr'
-        qr.provider.fieldId = FieldID['VIETQR'] if isVietQR else FieldID['VNPAYQR']
-        qr.provider.guid = QRProviderGUID['VIETQR'] if isVietQR else QRProviderGUID['VNPAY']
-        qr.provider.name = QRProvider['VIETQR'] if isVietQR else QRProvider['VNPAY']
-        if isVietQR:
+        qr = QRPay()
+        qr.provider.fieldId = FieldID['VIETQR' if provider_type_lower == 'vietqr' else 'VNPAYQR']
+        qr.provider.guid = QRProviderGUID['VIETQR' if provider_type_lower == 'vietqr' else 'VNPAY']
+        qr.provider.name = QRProvider['VIETQR' if provider_type_lower == 'vietqr' else 'VNPAY']
+        if provider_type_lower == 'vietqr':
             qr.provider.service = options.get('service', VietQRService['BY_ACCOUNT_NUMBER'])
             qr.consumer.bankBin = options['bankBin']
             qr.consumer.bankNumber = options['bankNumber']
@@ -93,29 +109,21 @@ class QRPay:
 
     @staticmethod
     def verifyCRC(content):
-        checkContent = content[:-4]
-        crcCode = content[-4:].upper()
-        genCrcCode = QRPay.genCRCCode(checkContent)
-        return crcCode == genCrcCode
+        check_content = content[:-4]
+        crc_code = content[-4:].upper()
+        gen_crc_code = QRPay.genCRCCode(check_content)
+        return crc_code == gen_crc_code
 
     @staticmethod
     def genCRCCode(content):
         return format(QRPay.crc16ccitt(content), '04X')
 
     @staticmethod
-    def sliceContent(content):
-        id = content[:2]
-        length = int(content[2:4])
-        value = content[4:4 + length]
-        nextValue = content[4 + length:]
-        return id, length, value, nextValue
-
-    @staticmethod
-    def genFieldData(id, value):
-        fieldId = id if id is not None else ''
-        fieldValue = value if value is not None else ''
-        idLen = len(fieldId)
-        if idLen != 2 or len(fieldValue) <= 0:
+    def genFieldData(identifier, value):
+        field_id = identifier if identifier is not None else ''
+        field_value = value if value is not None else ''
+        id_len = len(field_id)
+        if id_len != 2 or len(field_value) <= 0:
             return ''
-        length = str(len(fieldValue)).zfill(2)
-        return f"{fieldId}{length}{fieldValue}"
+        length = str(len(field_value)).zfill(2)
+        return f"{field_id}{length}{field_value}"
