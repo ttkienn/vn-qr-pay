@@ -14,9 +14,7 @@ from constants.qr_pay import (
 
 
 class QRPay:
-    def __init__(self, content=None):
-        self.content = content
-        self.isValid = True
+    def __init__(self):
         self.provider = Provider()
         self.consumer = Consumer()
         self.merchant = Merchant()
